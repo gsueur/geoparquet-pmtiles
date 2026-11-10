@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Each reader must see the baked file exactly like the original: rows, sum(OGC_FID), sum(TOWN_ID).
 cd "$(dirname $0)/.."
-D=${DATA:-/Volumes/T9/claude-scratch/gpq-pmtiles}
+D=${DATA:-data}
 for f in $D/src/parcels.parquet $D/parcels.baked.parquet; do
   echo "== ${f:t}"
   print -n "duckdb  "; duckdb -no-agent -init /dev/null -csv -noheader -c "select count(*), sum(OGC_FID), sum(TOWN_ID) from '$f'"

@@ -3,7 +3,7 @@ import { parquetMetadataAsync, asyncBufferFromFile, readColumnIndex, readOffsetI
 import proj4 from "proj4";
 proj4.defs("EPSG:26986", "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs");
 const toLL = proj4("EPSG:26986", "EPSG:4326").forward;
-const f = await asyncBufferFromFile("/Volumes/T9/claude-scratch/gpq-pmtiles/clcwork/demo.parquet");
+const f = await asyncBufferFromFile(process.argv[2] || "data/clcwork/demo.parquet");
 const md = await parquetMetadataAsync(f, { initialFetchSize: 2 << 20 });
 const bigStart = 2375406 - 46440;
 const n = 2 ** 12, lon = (x) => (x / n) * 360 - 180, lat = (y) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * 180) / Math.PI;

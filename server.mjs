@@ -1,15 +1,15 @@
 // Static server with HTTP Range support (single ranges, including suffix ranges "bytes=-N"),
 // like R2 or S3 would answer. /data/* is served from DATA, the rest from this folder.
-//   DATA=/Volumes/T9/claude-scratch/gpq-pmtiles node server.mjs   -> http://localhost:8790/web/
+//   DATA=./data node server.mjs   -> http://localhost:8790/web/
 import { createServer } from "node:http";
 import { createReadStream, statSync } from "node:fs";
 import { extname, join, normalize, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname);
-const DATA = resolve(process.env.DATA || "/Volumes/T9/claude-scratch/gpq-pmtiles");
+const DATA = resolve(process.env.DATA || "data");
 const PORT = Number(process.env.PORT || 8790);
 // public names (as on geoparquet-demo.geomermaids.com) -> local files
-const ALIAS = { "massgis-parcels.parquet": "parcels.parquet", "massgis-parcels-baseline.pmtiles": "full.pmtiles", "clc-2018.parquet": "clcwork/demo.parquet", "clc-2018-baseline.pmtiles": "clcwork/baseline.pmtiles" };
+const ALIAS = { "massgis-parcels.parquet": "parcels.parquet", "clc-2018.parquet": "clcwork/demo.parquet" };
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".wasm": "application/wasm", ".parquet": "application/vnd.apache.parquet", ".pmtiles": "application/vnd.pmtiles" };
 
 createServer((req, res) => {

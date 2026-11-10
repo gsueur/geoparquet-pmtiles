@@ -33,9 +33,11 @@ footer' = original FileMetaData + key_value_metadata["pmtiles"] = {"version":3,"
 python3 -m venv .venv && .venv/bin/pip install pyarrow geoarrow-pyarrow pmtiles polars
 npm install
 # needs duckdb (spatial extension) and tylertoo on the PATH
-D=/Volumes/T9/claude-scratch/gpq-pmtiles
+# source files: https://parquetry.geomermaids.com/clc/2018/clc_2018.parquet
+#               https://parquetry.geomermaids.com/massgis/parcels/l3_taxpar_poly.parquet
+D=data   # any folder: the CORINE build needs about 20 GB
 ./prepare.sh $D/clc/clc_2018.parquet $D/clcwork clc_2018 8000 12 13 ID Code_18,ID 2
-npm run dev            # http://localhost:8790/web/  (?d=parcels or ?d=clc)
+DATA=$D npm run dev    # http://localhost:8790/web/  (?d=parcels or ?d=clc)
 npm run deploy         # builds site/dist and deploys the Worker; data files go to R2 with rclone
 ```
 

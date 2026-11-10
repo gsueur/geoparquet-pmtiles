@@ -1,5 +1,5 @@
 {
-  "name": "parquet-pmtiles-sandbox",
+  "name": "geoparquet-pmtiles",
   "version": "1.0.0",
   "description": "GeoParquet with a PMTiles archive baked in: build tools and a MapLibre reader",
   "scripts": {
