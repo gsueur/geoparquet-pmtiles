@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>GeoParquet with baked PMTiles</title>
+<meta name="description" content="One GeoParquet 2.0 file that stays standard for analytics and carries its own map: generalized PMTiles overviews baked in, full-resolution geometry read from the rows.">
+<style>
+  :root { --bg:#fff; --fg:#1d232b; --mute:#5f6b78; --line:#dde2e8; --code:#f3f5f8; --tiles:#d94801; --pq:#2f6fb3; --foot:#8a96a3; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#161b22; --fg:#e6edf3; --mute:#9aa7b4; --line:#30363d; --code:#1f2630; } }
+  :root[data-theme="dark"] { --bg:#161b22; --fg:#e6edf3; --mute:#9aa7b4; --line:#30363d; --code:#1f2630; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 20px; margin: 40px 0 8px; }
+  h3 { font-size: 16px; margin: 24px 0 4px; }
+  p, li { color: var(--fg); }
+  .lede { font-size: 18px; color: var(--mute); margin: 0 0 20px; }
+  a { color: var(--pq); }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  pre { background: var(--code); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--mute); font-weight: 600; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cta { display: inline-block; margin: 4px 12px 4px 0; padding: 8px 14px; border-radius: 6px; background: var(--pq); color: #fff; text-decoration: none; font-weight: 600; }
+  .cta.alt { background: none; color: var(--pq); border: 1px solid var(--pq); }
+  .layout { display: flex; height: 44px; border-radius: 6px; overflow: hidden; margin: 12px 0 6px; font-size: 12px; color: #fff; }
+  .layout div { display: flex; align-items: center; justify-content: center; padding: 0 6px; white-space: nowrap; overflow: hidden; }
+  .legend { font-size: 13px; color: var(--mute); }
+  .note { border-left: 3px solid var(--tiles); padding: 4px 12px; margin: 16px 0; color: var(--fg); background: var(--code); border-radius: 0 6px 6px 0; }
+  @media (max-width: 600px) { td.n { white-space: normal; } pre { white-space: pre-wrap; word-break: break-all; } table { font-size: 13px; } th, td { padding: 6px 4px; } }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--mute); }
+</style>
+</head>
+<body>
+<main>
+<h1>One GeoParquet file, with its map inside</h1>
+<p class="lede">A genuine GeoParquet 2.0 file for analytics that also carries the map overviews a web map needs. The full-resolution geometry is stored once, in the Parquet rows, and read from there when you zoom in.</p>
+<a class="cta" href="./">Parcels, Massachusetts</a><a class="cta" href="./?d=clc">Land cover, Europe</a>
+
+<h2>Why</h2>
+<p>Cloud-native vector data usually ships as two files: a GeoParquet for queries and a PMTiles archive for the map. The tiles repeat every feature's geometry at every zoom, so the same features are stored twice, and the two files can drift apart.</p>
+<p>The goal here is a single file that</p>
+<ul>
+  <li>stays a <b>standard GeoParquet</b>: DuckDB, GDAL, QGIS, Arrow and any other reader see the same rows, columns, counts and sums;</li>
+  <li>carries <b>real map overviews</b>, generalized the way a cartographer would: simplified, with small features kept visible so dense areas still read as dense;</li>
+  <li>does <b>not duplicate the full-resolution geometry</b>: at close zooms, the map reads it from the Parquet rows.</li>
+</ul>
+
+<h2>Two datasets</h2>
+<table>
+  <tr><th></th><th>MassGIS parcels</th><th>CORINE Land Cover 2018</th></tr>
+  <tr><td>Features</td><td class="n">2,197,531 parcels, Massachusetts</td><td class="n">2,375,406 polygons, 39 European countries</td></tr>
+  <tr><td>CRS</td><td class="n">EPSG:26986</td><td class="n">EPSG:3035</td></tr>
+  <tr><td>Baked overviews</td><td class="n">zooms 6 to 13</td><td class="n">zooms 2 to 11</td></tr>
+  <tr><td>From the Parquet rows</td><td class="n">zoom 14 and closer</td><td class="n">zoom 12 and closer</td></tr>
+</table>
+
+<h2>The layout</h2>
+<div class="layout" role="img" aria-label="File layout for the parcels: GeoParquet data 617 MB, then the PMTiles archive 217 MB, then the Parquet footer">
+  <div style="flex:617;background:var(--pq)">GeoParquet rows, 617 MB</div>
+  <div style="flex:217;background:var(--tiles)">PMTiles, 217 MB</div>
+  <div style="flex:12;background:var(--foot)"></div>
+</div>
+<p class="legend">The parcels file: PAR1 · row groups and page index · PMTiles archive · footer · PAR1</p>
+<p>The PMTiles archive sits between the last data byte and the Parquet footer. Nothing before it moves, so every offset in the footer stays valid. The footer gets one more key-value entry:</p>
+<pre><code>pmtiles = {"version": 3, "offset": 616679114, "length": 217318431}</code></pre>
+<p>Parquet readers only follow the footer, so they never see the archive. A reader that knows the convention reads the end of the file, finds the entry and opens the archive at its offset. PMTiles offsets are relative to the start of the archive, so the archive is a byte-for-byte copy of a normal <code>.pmtiles</code> file.</p>
+
+<h2>How the map reads it</h2>
+<table>
+  <tr><th>Zoom</th><th>Where the map gets it</th></tr>
+  <tr><td>Overview zooms</td><td>Baked PMTiles: features simplified for each zoom, tiny ones kept as small squares so dense areas stay dense.</td></tr>
+  <tr><td>Detail zooms</td><td>The Parquet rows for 98% of the features: original geometry, turned into vector tiles in the browser. The 2% widest features come from baked tiles (see below).</td></tr>
+  <tr><td>Click</td><td>The Parquet rows: every attribute of the feature, from the pages that contain the point.</td></tr>
+</table>
+<ol>
+  <li><b>One 64 KB read of the end of the file</b> finds the <code>pmtiles</code> entry. It is the last key-value of the footer, so the rest of the footer is not needed to draw the map.</li>
+  <li><b>Overview zooms</b> go through <a href="https://github.com/protomaps/PMTiles">pmtiles.js</a> with a source that adds the archive's offset to every range request. MapLibre works unchanged.</li>
+  <li><b>Detail zooms</b> come from a MapLibre custom protocol. A Web Worker reads the footer once, picks the pages whose bounding box overlaps the tile (from the page index of the <code>bbox</code> columns), decodes them with <a href="https://github.com/hyparam/hyparquet">hyparquet</a>, reprojects, then clips and encodes the tile with geojson-vt and vt-pbf. Decoded pages are cached, so neighbouring tiles share them.</li>
+  <li><b>Attributes on click</b> use the same page selection on a point: about 60 to 110 KB.</li>
+</ol>
+<p><b>Keeping requests few and parallel.</b> The page index entries of a row group are read in one request and handed to hyparquet, and neighbouring pages are read as one run per column, then cached page by page. Row reads also skip the browser's HTTP cache: Chrome otherwise serializes concurrent range requests to the same URL behind its cache lock, which turned a half-second parcel lookup into five seconds.</p>
+
+<h2>Where the line sits</h2>
+<p>Below the detail zoom, a view holds far more features than it can show: a dense zoom 13 view of Boston covers hundreds of thousands of full-resolution parcels, which tiles show simplified and much lighter. From the detail zoom, tiles are close to full resolution anyway, and they are the heaviest zooms of a normal archive. That is what this file stops storing twice.</p>
+
+<h2>The widest 2%</h2>
+<p>A few features are both very wide and very detailed: water bodies, rights of way, forests, a city's continuous urban fabric. A tile clips them to its square; a Parquet page cannot, it is read whole. In Paris at zoom 12, the regular land cover polygons in view take 0.75 MB of pages, but four pages of polygons wider than 8 km weigh 34.5 MB. The parcels show the same pattern in Boston: 2.2 MB of regular pages, 22.6 MB for two pages of parcels wider than 500 m.</p>
+<p>So those features are moved to the end of the file, and for the detail zooms the baked archive carries tiles of these features only. This is the one place where geometry is stored twice, as clipped tiles: 34 MB for the parcels, 338 MB for CORINE, where the widest polygons hold about half of all the geometry. With it, a detail view reads 0.8 MB of rows in Paris and 2.5 MB in Boston.</p>
+<p>Pages sized by bytes rather than rows, so that a giant feature sits alone in its page, could remove even that. Writers do not do it today while keeping pages aligned across columns.</p>
+
+<h2>The data files</h2>
+<p><a href="https://www.mass.gov/info-details/massgis-data-property-tax-parcels">MassGIS Level 3 property tax parcels</a> and <a href="https://land.copernicus.eu/en/products/corine-land-cover/clc2018">CORINE Land Cover 2018</a>, from the Geomermaids parquetry catalogs. To make detail reads tight, the rows were laid out for it:</p>
+<ul>
+  <li>sorted along a Hilbert curve, the widest 2% of features moved to the end;</li>
+  <li>pages of 512 rows with a page index, so a reader can fetch a page, not a whole row group;</li>
+  <li>no dictionary on near-unique identifiers, so a page read does not pull a dictionary as well;</li>
+  <li>native Parquet GEOMETRY with its CRS (GeoParquet 2.0), zstd.</li>
+</ul>
+
+<h3>Readers tested</h3>
+<table>
+  <tr><th>Reader</th><th>On the files with their map inside</th></tr>
+  <tr><td>DuckDB 2.0</td><td>Same count, sums and bbox-filtered queries as the source files.</td></tr>
+  <tr><td>pyarrow</td><td>Same rows and sums; <code>geo</code> metadata intact.</td></tr>
+  <tr><td>GDAL (Parquet driver)</td><td>Same SQL results and geometries.</td></tr>
+  <tr><td>hyparquet</td><td>Same rows; the extra key-value is visible, nothing else.</td></tr>
+  <tr><td>Polars</td><td>Does not read GeoParquet 2.0 native geometry yet, with or without the archive.</td></tr>
+</table>
+<p>Removing the archive (a byte copy up to its offset, plus the original footer) gives back a plain GeoParquet byte for byte.</p>
+
+<h2>Numbers</h2>
+<table>
+  <tr><th></th><th>MassGIS parcels</th><th>CORINE Land Cover 2018</th></tr>
+  <tr><td>File</td><td class="n">834 MB: GeoParquet 617 + PMTiles 217</td><td class="n">4.37 GB: GeoParquet 3.11 + PMTiles 1.26</td></tr>
+  <tr><td>Finding the map</td><td colspan="2">One 64 KB read of the end of the file.</td></tr>
+  <tr><td>Detail view</td><td class="n">2.5 MB of rows (Boston, zoom 14)</td><td class="n">0.8 MB of rows (Paris, zoom 12)</td></tr>
+  <tr><td>Detail view, first load</td><td class="n">about 2 s (Boston, zoom 14)</td><td class="n">about 2 s (Paris, zoom 12)</td></tr>
+  <tr><td>Attributes on click</td><td class="n">about 60 KB, 0.5 s, every column</td><td class="n">about 110 KB, 0.5 s, every column</td></tr>
+</table>
+<p class="legend">Measured with headless Chrome. Open the map and watch the network panel on the right for your own connection.</p>
+
+<h2>Open questions</h2>
+<ul>
+  <li><b>The page index costs space:</b> 512-row pages make the parcels GeoParquet 617 MB instead of 503 MB, and CORINE 3.11 GB instead of 2.73 GB. Pages sized by bytes could also bring that down.</li>
+  <li><b>Any tool that rewrites the file drops the archive.</b> That is by design: the map is derived data, like an index.</li>
+  <li><b>Where the line sits</b> depends on the data: zoom 14 for parcels, 12 for 1:100,000 land cover. Points or small buildings may pay off from a lower zoom.</li>
+</ul>
+
+<h2>Related work</h2>
+<p>The GeoParquet community is discussing <a href="https://github.com/opengeospatial/geoparquet/discussions">overviews</a>, and <a href="https://github.com/Kanahiro/cloud-optimized-geoparquet">Cloud-Optimized GeoParquet</a> orders a file's rows by level of detail so that the first row groups make a coarse map. This demo takes another path: the data keeps a purely spatial order for queries, and the overviews are real, generalized map tiles kept next to it in the same file.</p>
+
+<h2>Built with</h2>
+<p><a href="https://github.com/geoparquet-io/tylertoo">tylertoo</a> for the overview tiles, <a href="https://arrow.apache.org/docs/python/">pyarrow</a> and <a href="https://duckdb.org">DuckDB</a> for the layout, <a href="https://maplibre.org">MapLibre GL JS</a>, <a href="https://github.com/protomaps/PMTiles">pmtiles.js</a>, <a href="https://github.com/hyparam/hyparquet">hyparquet</a>, <a href="https://github.com/maplibre/geojson-vt">geojson-vt</a>, <a href="https://github.com/maplibre/vt-pbf">vt-pbf</a> and <a href="https://proj4js.org">proj4js</a> in the browser. Parcels: MassGIS (Bureau of Geographic Information), Commonwealth of Massachusetts. Land cover: CORINE Land Cover 2018, European Environment Agency, Copernicus Land Monitoring Service. Basemap: Esri.</p>
+
+<footer>A <a href="https://geomermaids.com">Geomermaids</a> experiment, November 2026.</footer>
+</main>
+</body>
+</html>

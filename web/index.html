@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>GeoParquet with baked PMTiles</title>
+<link rel="stylesheet" href="/node_modules/maplibre-gl/dist/maplibre-gl.css">
+<script src="/node_modules/maplibre-gl/dist/maplibre-gl.js"></script>
+<script src="/node_modules/pmtiles/dist/pmtiles.js"></script>
+<script src="/node_modules/proj4/dist/proj4.js"></script>
+<script type="importmap">
+{ "imports": {
+  "hyparquet": "/node_modules/hyparquet/src/index.js",
+  "hyparquet-compressors": "/node_modules/hyparquet-compressors/src/index.js",
+  "fzstd": "/node_modules/fzstd/esm/index.mjs",
+  "hysnappy": "/node_modules/hysnappy/js/index.js"
+} }
+</script>
+<style>
+  :root { --bg:#fff; --fg:#1d232b; --mute:#5f6b78; --line:#dde2e8; --tiles:#d94801; --pq:#2f6fb3; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161b22; --fg:#e6edf3; --mute:#9aa7b4; --line:#30363d; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+  #map { position:absolute; inset:0 340px 0 0; }
+  aside { position:absolute; top:0; right:0; bottom:0; width:340px; padding:16px; overflow:auto; border-left:1px solid var(--line); }
+  h1 { font-size:16px; margin:0 0 4px; }
+  .mute { color:var(--mute); font-size:12px; }
+  .bar { display:flex; height:10px; border-radius:3px; overflow:hidden; margin:8px 0 4px; }
+  .bar span { display:block; }
+  table { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+  td { padding:3px 4px; border-bottom:1px solid var(--line); vertical-align:top; word-break:break-all; }
+  td:first-child { color:var(--mute); width:40%; word-break:normal; }
+  .k { font-variant-numeric: tabular-nums; }
+  .sw { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; }
+  section { margin-top:16px; }
+  #zoom { position:absolute; left:56px; top:10px; z-index:2; padding:5px 9px; border-radius:6px; background:var(--bg); color:var(--fg); box-shadow:0 1px 4px rgba(0,0,0,.25); font-size:13px; font-variant-numeric:tabular-nums; pointer-events:none; }
+  #zoom .src { color:var(--mute); }
+  .links { font-size:13px; margin:2px 0 8px; } .links a { color:var(--pq); }
+  @media (max-width: 700px) { #map { inset:0 0 45% 0; } aside { top:55%; width:auto; left:0; border-left:0; border-top:1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="zoom" aria-live="polite"></div>
+<aside>
+  <h1>One file: GeoParquet + PMTiles</h1>
+  <div class="links" id="ds"></div>
+  <div class="links"><a href="readme">How it works</a></div>
+  <div class="mute"><span id="desc"></span> Overview tiles, detail geometry and attributes all come from the same <code>.parquet</code>; each geometry is stored once.</div>
+  <section id="file"></section>
+  <section>
+    <b>Network, this page</b>
+    <table class="k">
+      <tr><td><span class="sw" style="background:var(--tiles)"></span>Overview tiles</td><td id="n-tiles">0</td></tr>
+      <tr><td><span class="sw" style="background:var(--pq)"></span>Rows for detail tiles</td><td id="n-detail">0</td></tr>
+      <tr><td><span class="sw" style="background:var(--pq)"></span>Rows for clicks</td><td id="n-pick">0</td></tr>
+      <tr><td>Footer</td><td id="n-footer">0</td></tr>
+      <tr><td>Detail tiles built</td><td id="n-build">none yet</td></tr>
+    </table>
+  </section>
+  <section>
+    <b>Click a feature</b> <span class="mute" id="clickzoom"></span>
+    <div id="pick" class="mute">Attributes are read from the Parquet rows, row groups pruned on their bbox statistics.</div>
+  </section>
+</aside>
+<script type="module" src="app.js"></script>
+</body>
+</html>

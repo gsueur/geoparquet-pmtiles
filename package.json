@@ -1,0 +1,25 @@
+{
+  "name": "parquet-pmtiles-sandbox",
+  "version": "1.0.0",
+  "description": "GeoParquet with a PMTiles archive baked in: build tools and a MapLibre reader",
+  "scripts": {
+    "worker": "esbuild web/src/detail-worker.js --bundle --format=esm --minify --outfile=web/detail-worker.js",
+    "dev": "npm run worker && node server.mjs",
+    "build": "site/build.sh",
+    "deploy": "site/build.sh && cd site && npx wrangler@4 deploy"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "@maplibre/geojson-vt": "^6.3.0",
+    "@maplibre/vt-pbf": "^4.3.3",
+    "hyparquet": "^1.33.0",
+    "hyparquet-compressors": "^1.1.3",
+    "maplibre-gl": "^5.24.0",
+    "pmtiles": "^4.5.0",
+    "proj4": "^2.22.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "private": true
+}

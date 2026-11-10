@@ -1,0 +1,9 @@
+{
+  "name": "geoparquet-demo",
+  "main": "worker.js",
+  "compatibility_date": "2026-04-01",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/data/*"] },
+  // demo files live in the parquetry bucket under geoparquet-demo/ (read only here)
+  "r2_buckets": [{ "binding": "DATA", "bucket_name": "parquetry" }],
+  "routes": [{ "pattern": "geoparquet-demo.geomermaids.com", "custom_domain": true }]
+}
