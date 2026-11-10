@@ -28,8 +28,22 @@
   td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .cta { display: inline-block; margin: 4px 12px 4px 0; padding: 8px 14px; border-radius: 6px; background: var(--pq); color: #fff; text-decoration: none; font-weight: 600; }
   .cta.alt { background: none; color: var(--pq); border: 1px solid var(--pq); }
-  .layout { display: flex; height: 44px; border-radius: 6px; overflow: hidden; margin: 12px 0 6px; font-size: 12px; color: #fff; }
-  .layout div { display: flex; align-items: center; justify-content: center; padding: 0 6px; white-space: nowrap; overflow: hidden; }
+  .figure { margin: 16px 0 6px; overflow-x: auto; }
+  .hint { display: none; } @media (max-width: 760px) { .hint { display: inline; } }
+  .figure svg { display: block; width: 100%; min-width: 720px; height: auto; font-family: system-ui, -apple-system, sans-serif; }
+  .figure text { fill: var(--fg); font-size: 14px; }
+  .figure .t-h { font-weight: 700; font-size: 15px; }
+  .figure .t-s { font-size: 13px; } .figure .t-xs { font-size: 11px; }
+  .figure .t-on { fill: #fff; } .figure .t-c { text-anchor: middle; } .figure .t-e { text-anchor: end; }
+  .figure .t-m { fill: var(--mute); } .figure .t-tl { fill: var(--tiles); } .figure .t-b { font-weight: 700; }
+  .figure .t-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .figure .f-pq { fill: var(--pq); } .figure .f-pq2 { fill: #5b8fc7; } .figure .f-tl { fill: var(--tiles); } .figure .f-tl2 { fill: #e8753a; }
+  .figure .f-ft { fill: var(--foot); } .figure .f-fg { fill: var(--fg); }
+  .figure .f-box { fill: var(--code); stroke: var(--line); }
+  .figure .f-hl { fill: color-mix(in srgb, var(--tiles) 14%, transparent); }
+  .figure .s-fg { fill: none; stroke: var(--fg); stroke-width: 1.5; }
+  .figure .s-tl { fill: none; stroke: var(--tiles); stroke-width: 2; }
+  .figure .s-guide { fill: none; stroke: var(--mute); stroke-width: 1; stroke-dasharray: 3 4; }
   .legend { font-size: 13px; color: var(--mute); }
   .note { border-left: 3px solid var(--tiles); padding: 4px 12px; margin: 16px 0; color: var(--fg); background: var(--code); border-radius: 0 6px 6px 0; }
   @media (max-width: 600px) { td.n { white-space: normal; } pre { white-space: pre-wrap; word-break: break-all; } table { font-size: 13px; } th, td { padding: 6px 4px; } }
@@ -40,7 +54,7 @@
 <main>
 <h1>One GeoParquet file, with its map inside</h1>
 <p class="lede">A genuine GeoParquet 2.0 file for analytics that also carries the map overviews a web map needs. The full-resolution geometry is stored once, in the Parquet rows, and read from there when you zoom in.</p>
-<a class="cta" href="./">Parcels, Massachusetts</a><a class="cta" href="./?d=clc">Land cover, Europe</a>
+<a class="cta" href="./">Parcels, Massachusetts</a><a class="cta" href="./?d=clc">Land cover, Europe</a><a class="cta alt" href="https://github.com/gsueur/geoparquet-pmtiles">Source on GitHub</a>
 
 <h2>Why</h2>
 <p>Cloud-native vector data usually ships as two files: a GeoParquet for queries and a PMTiles archive for the map. The tiles repeat every feature's geometry at every zoom, so the same features are stored twice, and the two files can drift apart.</p>
@@ -60,16 +74,85 @@
   <tr><td>From the Parquet rows</td><td class="n">zoom 14 and closer</td><td class="n">zoom 12 and closer</td></tr>
 </table>
 
-<h2>The layout</h2>
-<div class="layout" role="img" aria-label="File layout for the parcels: GeoParquet data 617 MB, then the PMTiles archive 217 MB, then the Parquet footer">
-  <div style="flex:617;background:var(--pq)">GeoParquet rows, 617 MB</div>
-  <div style="flex:217;background:var(--tiles)">PMTiles, 217 MB</div>
-  <div style="flex:12;background:var(--foot)"></div>
+<h2>How the tiles are baked in</h2>
+<p>A Parquet file is read from its end. The last 8 bytes hold the length of the footer and the magic <code>PAR1</code>; the footer (a Thrift-encoded <code>FileMetaData</code>) holds the schema, the key-value metadata, and the <b>absolute byte offset</b> of every column chunk and page index. Readers seek straight to those offsets. Nothing in the format requires the footer to follow the last data byte, and nothing reads the bytes in between.</p>
+<p>So the PMTiles archive goes in that gap, and the footer gets one key-value entry pointing to it:</p>
+
+<div class="figure">
+<svg viewBox="0 0 960 560" role="img" aria-labelledby="fig-title fig-desc" xmlns="http://www.w3.org/2000/svg">
+  <title id="fig-title">Byte layout of a GeoParquet file with a baked PMTiles archive</title>
+  <desc id="fig-desc">From byte 0: the PAR1 magic, the row groups, the page index, the PMTiles archive, the footer, the footer length and PAR1. The footer's row group offsets point to the column chunks, its page index offsets to the page index, and its pmtiles key-value entry to the archive. The archive is an unchanged PMTiles file whose internal offsets are relative to its first byte.</desc>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="f-fg"/></marker>
+    <marker id="aht" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="f-tl"/></marker>
+  </defs>
+
+  <!-- the file, byte 0 to the end -->
+  
+  <rect x="20" y="36" width="40" height="56" class="f-ft" rx="3"/><text x="40" y="69" class="t-on t-c t-s">PAR1</text>
+  <rect x="62" y="36" width="456" height="56" class="f-pq" rx="3"/><text x="290" y="61" class="t-on t-c">Row groups 0 … n</text><text x="290" y="80" class="t-on t-c t-s">column chunks → pages (geometry, bbox, attributes)</text>
+  <rect x="520" y="36" width="88" height="56" class="f-pq2" rx="3"/><text x="564" y="61" class="t-on t-c t-s">Page index</text><text x="564" y="78" class="t-on t-c t-xs">per-page stats</text>
+  <rect x="610" y="36" width="206" height="56" class="f-tl" rx="3"/><text x="713" y="61" class="t-on t-c">PMTiles archive</text><text x="713" y="80" class="t-on t-c t-s">inserted, byte for byte</text>
+  <rect x="818" y="36" width="88" height="56" class="f-ft" rx="3"/><text x="862" y="69" class="t-on t-c">Footer</text>
+  <rect x="908" y="36" width="34" height="56" class="f-ft" rx="3"/><text x="925" y="61" class="t-on t-c t-xs">len</text><text x="925" y="78" class="t-on t-c t-xs">PAR1</text>
+
+  <text x="20" y="31" class="t-m t-xs">byte 0</text>
+  <text x="610" y="31" class="t-tl t-xs">offset</text>
+  <text x="816" y="31" class="t-m t-xs t-e">offset + length</text>
+  <text x="942" y="31" class="t-m t-xs t-e">size</text>
+
+  <!-- footer pointers -->
+  <path d="M838 92 C838 230, 300 230, 300 96" class="s-fg" marker-end="url(#ah)"/>
+  <text x="292" y="116" class="t-s t-e">row group and column chunk offsets</text>
+  <path d="M858 92 C858 180, 564 180, 564 96" class="s-fg" marker-end="url(#ah)"/>
+  <text x="556" y="116" class="t-s t-e">page index offsets</text>
+  <path d="M880 92 C880 140, 713 140, 713 96" class="s-tl" marker-end="url(#aht)"/>
+  <text x="705" y="116" class="t-s t-tl t-e">"pmtiles" entry</text>
+
+  <!-- zoom: the archive -->
+  <path d="M610 92 L20 262 M816 92 L470 262" class="s-guide"/>
+  <rect x="20" y="262" width="450" height="200" class="f-box" rx="6"/>
+  <text x="36" y="288" class="t-h">PMTiles archive: an ordinary .pmtiles file</text>
+  <rect x="36" y="302" width="60" height="48" class="f-tl" rx="3"/><text x="66" y="324" class="t-on t-c t-xs">header</text><text x="66" y="340" class="t-on t-c t-xs">127 B</text>
+  <rect x="98" y="302" width="64" height="48" class="f-tl2" rx="3"/><text x="130" y="324" class="t-on t-c t-xs">root</text><text x="130" y="340" class="t-on t-c t-xs">directory</text>
+  <rect x="164" y="302" width="60" height="48" class="f-tl2" rx="3"/><text x="194" y="324" class="t-on t-c t-xs">JSON</text><text x="194" y="340" class="t-on t-c t-xs">metadata</text>
+  <rect x="226" y="302" width="60" height="48" class="f-tl2" rx="3"/><text x="256" y="324" class="t-on t-c t-xs">leaf</text><text x="256" y="340" class="t-on t-c t-xs">directories</text>
+  <rect x="288" y="302" width="166" height="48" class="f-tl" rx="3"/><text x="371" y="331" class="t-on t-c t-s">tile data (MVT)</text>
+  <text x="36" y="378" class="t-s">Offsets inside the archive count from its first byte,</text>
+  <text x="36" y="396" class="t-s">so the reader adds the base offset to every range request.</text>
+  <text x="36" y="420" class="t-s">Overview zooms hold all features, simplified; detail zooms</text>
+  <text x="36" y="438" class="t-s">hold only the widest 2% (see below).</text>
+
+  <!-- zoom: the footer -->
+  <path d="M818 92 L490 262 M942 92 L942 262" class="s-guide"/>
+  <rect x="490" y="262" width="452" height="200" class="f-box" rx="6"/>
+  <text x="506" y="288" class="t-h">Footer: Thrift FileMetaData</text>
+  <text x="506" y="314" class="t-mono">schema, num_rows</text>
+  <text x="506" y="334" class="t-mono">row_groups[ ]  → chunk + page index offsets</text>
+  <text x="506" y="354" class="t-mono">key_value_metadata:</text>
+  <text x="526" y="374" class="t-mono">"geo"           GeoParquet 2.0</text>
+  <text x="526" y="394" class="t-mono">"ARROW:schema"</text>
+  <rect x="520" y="401" width="412" height="24" class="f-hl" rx="3"/>
+  <text x="526" y="418" class="t-mono t-tl">"pmtiles"  {"version":3,"offset":…,"length":…}</text>
+  <text x="506" y="448" class="t-mono t-m">then: footer length (4 B, little-endian), "PAR1"</text>
+
+  <!-- two readers -->
+  <text x="20" y="500" class="t-h">Who reads what</text>
+  <text x="20" y="524" class="t-s"><tspan class="t-b">DuckDB, GDAL, pyarrow:</tspan> last 8 bytes → footer → column chunks. The archive is never touched.</text>
+  <text x="20" y="546" class="t-s"><tspan class="t-b t-tl">Map reader:</tspan> last 64 KB → "pmtiles" entry → archive header at offset → tiles; detail zooms → rows.</text>
+</svg>
 </div>
-<p class="legend">The parcels file: PAR1 · row groups and page index · PMTiles archive · footer · PAR1</p>
-<p>The PMTiles archive sits between the last data byte and the Parquet footer. Nothing before it moves, so every offset in the footer stays valid. The footer gets one more key-value entry:</p>
-<pre><code>pmtiles = {"version": 3, "offset": 616679114, "length": 217318431}</code></pre>
-<p>Parquet readers only follow the footer, so they never see the archive. A reader that knows the convention reads the end of the file, finds the entry and opens the archive at its offset. PMTiles offsets are relative to the start of the archive, so the archive is a byte-for-byte copy of a normal <code>.pmtiles</code> file.</p>
+<p class="legend"><span class="hint">Scroll the drawing sideways. </span>Not to scale: the parcels file is 617 MB of GeoParquet, 217 MB of PMTiles and a 430 KB footer.</p>
+
+<h3>Baking, step by step</h3>
+<ol>
+  <li>Read the last 8 bytes of the GeoParquet: footer length and <code>PAR1</code>. The footer starts at <code>size − 8 − length</code>.</li>
+  <li>Copy every byte before the footer unchanged: magic, row groups, page index. Every offset in the footer still points to the right place.</li>
+  <li>Append the PMTiles file as is. Its first byte is at <code>offset</code>, the old footer start.</li>
+  <li>Write the footer again with one more <code>key_value_metadata</code> entry, <code>pmtiles = {"version": 3, "offset": …, "length": …}</code>, then its new length and <code>PAR1</code>. Only field 5 of the Thrift struct is rebuilt; every other field is copied as raw bytes, so the schema, statistics and offsets stay bit-identical.</li>
+</ol>
+<p>The entry is written last in the list, so it sits near the end of the footer: one 64 KB read of the file's end finds it without parsing the whole footer. Stripping is the reverse: copy up to <code>offset</code>, write the original footer, and you get the plain GeoParquet back byte for byte. The whole tool is about 200 lines of Python without dependencies: <a href="https://github.com/gsueur/geoparquet-pmtiles/blob/main/bake.py"><code>bake.py</code></a>.</p>
+<p>Any tool that rewrites the file (pyarrow, DuckDB <code>COPY</code>) writes a new footer and drops the archive. That is the intended behaviour: the map is derived data, like an index.</p>
 
 <h2>How the map reads it</h2>
 <table>
@@ -138,7 +221,7 @@
 <h2>Built with</h2>
 <p><a href="https://github.com/geoparquet-io/tylertoo">tylertoo</a> for the overview tiles, <a href="https://arrow.apache.org/docs/python/">pyarrow</a> and <a href="https://duckdb.org">DuckDB</a> for the layout, <a href="https://maplibre.org">MapLibre GL JS</a>, <a href="https://github.com/protomaps/PMTiles">pmtiles.js</a>, <a href="https://github.com/hyparam/hyparquet">hyparquet</a>, <a href="https://github.com/maplibre/geojson-vt">geojson-vt</a>, <a href="https://github.com/maplibre/vt-pbf">vt-pbf</a> and <a href="https://proj4js.org">proj4js</a> in the browser. Parcels: MassGIS (Bureau of Geographic Information), Commonwealth of Massachusetts. Land cover: CORINE Land Cover 2018, European Environment Agency, Copernicus Land Monitoring Service. Basemap: Esri.</p>
 
-<footer>A <a href="https://geomermaids.com">Geomermaids</a> experiment, November 2026.</footer>
+<footer>A <a href="https://geomermaids.com">Geomermaids</a> experiment, November 2026. Code under the MIT license: <a href="https://github.com/gsueur/geoparquet-pmtiles">github.com/gsueur/geoparquet-pmtiles</a>.</footer>
 </main>
 </body>
 </html>
